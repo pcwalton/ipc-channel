@@ -1,5 +1,5 @@
 [package]
-Authors = ["pcwalton@mimiga.net"]
+authors = ["pcwalton@mimiga.net"]
 name = "ipc-channel"
 version = "0.1.0"
 
