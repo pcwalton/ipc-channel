@@ -8,7 +8,7 @@
 // except according to those terms.
 
 use ipc::{self, IpcOneShotServer, IpcReceiver, IpcReceiverSet, IpcSender, IpcSharedMemory};
-use ipc::{OpaqueIpcSender};
+use ipc::OpaqueIpcSender;
 use router::ROUTER;
 use libc;
 use std::iter;
@@ -111,15 +111,23 @@ fn select() {
         age: 29,
     };
     tx0.send(person.clone()).unwrap();
-    let (received_id, received_data) =
-        rx_set.select().unwrap().into_iter().next().unwrap().unwrap();
+    let (received_id, received_data) = rx_set.select()
+                                             .unwrap()
+                                             .into_iter()
+                                             .next()
+                                             .unwrap()
+                                             .unwrap();
     let received_person: Person = received_data.to().unwrap();
     assert_eq!(received_id, rx0_id);
     assert_eq!(received_person, person);
 
     tx1.send(person.clone()).unwrap();
-    let (received_id, received_data) =
-        rx_set.select().unwrap().into_iter().next().unwrap().unwrap();
+    let (received_id, received_data) = rx_set.select()
+                                             .unwrap()
+                                             .into_iter()
+                                             .next()
+                                             .unwrap()
+                                             .unwrap();
     let received_person: Person = received_data.to().unwrap();
     assert_eq!(received_id, rx1_id);
     assert_eq!(received_person, person);
@@ -179,9 +187,10 @@ fn router_simple() {
     tx.send(person.clone()).unwrap();
 
     let (callback_fired_sender, callback_fired_receiver) = mpsc::channel::<Person>();
-    ROUTER.add_route(rx.to_opaque(), Box::new(move |person| {
-        callback_fired_sender.send(person.to().unwrap()).unwrap()
-    }));
+    ROUTER.add_route(rx.to_opaque(),
+                     Box::new(move |person| {
+                         callback_fired_sender.send(person.to().unwrap()).unwrap()
+                     }));
     let received_person = callback_fired_receiver.recv().unwrap();
     assert_eq!(received_person, person);
 }
@@ -255,9 +264,7 @@ fn router_drops_callbacks_on_sender_shutdown() {
 
     let (tx0, rx0) = ipc::channel::<()>().unwrap();
     let (drop_tx, drop_rx) = mpsc::channel();
-    let dropper = Dropper {
-        sender: drop_tx,
-    };
+    let dropper = Dropper { sender: drop_tx };
 
     ROUTER.add_route(rx0.to_opaque(), Box::new(move |_| drop(&dropper)));
     drop(tx0);
@@ -278,9 +285,7 @@ fn router_drops_callbacks_on_cloned_sender_shutdown() {
 
     let (tx0, rx0) = ipc::channel::<()>().unwrap();
     let (drop_tx, drop_rx) = mpsc::channel();
-    let dropper = Dropper {
-        sender: drop_tx,
-    };
+    let dropper = Dropper { sender: drop_tx };
 
     ROUTER.add_route(rx0.to_opaque(), Box::new(move |_| drop(&dropper)));
     let txs = vec![tx0.clone(), tx0.clone(), tx0.clone()];
@@ -303,9 +308,10 @@ fn router_big_data() {
     });
 
     let (callback_fired_sender, callback_fired_receiver) = mpsc::channel::<Vec<Person>>();
-    ROUTER.add_route(rx.to_opaque(), Box::new(move |people| {
-        callback_fired_sender.send(people.to().unwrap()).unwrap()
-    }));
+    ROUTER.add_route(rx.to_opaque(),
+                     Box::new(move |people| {
+                         callback_fired_sender.send(people.to().unwrap()).unwrap()
+                     }));
     let received_people = callback_fired_receiver.recv().unwrap();
     assert_eq!(received_people, people);
     thread.join().unwrap();
@@ -388,11 +394,9 @@ fn multiple_paths_to_a_sender() {
         person: person.clone(),
         sender: sub_tx,
     });
-    let send_data = vec![
-        person_and_sender.clone(),
-        person_and_sender.clone(),
-        person_and_sender.clone()
-    ];
+    let send_data = vec![person_and_sender.clone(),
+                         person_and_sender.clone(),
+                         person_and_sender.clone()];
     let (super_tx, super_rx) = ipc::channel().unwrap();
     super_tx.send(send_data).unwrap();
     let received_data = super_rx.recv().unwrap();
@@ -406,4 +410,3 @@ fn multiple_paths_to_a_sender() {
     let received_person = sub_rx.recv().unwrap();
     assert_eq!(received_person, person);
 }
-
