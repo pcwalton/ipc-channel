@@ -23,6 +23,3 @@ extern crate uuid;
 pub mod ipc;
 pub mod platform;
 pub mod router;
-
-#[cfg(test)]
-mod test;
