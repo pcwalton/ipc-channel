@@ -288,7 +288,7 @@ pub struct UnixReceiverSet {
 impl Drop for UnixReceiverSet {
     fn drop(&mut self) {
         unsafe {
-            for pollfd in self.pollfds.iter() {
+            for pollfd in &self.pollfds {
                 assert!(libc::close(pollfd.fd) >= 0);
             }
         }
@@ -318,7 +318,7 @@ impl UnixReceiverSet {
         }
 
         let mut hangups = HashSet::new();
-        for pollfd in self.pollfds.iter_mut() {
+        for pollfd in &mut self.pollfds {
             if (pollfd.revents & POLLIN) != 0 {
                 match recv(pollfd.fd, BlockingMode::Blocking) {
                     Ok((data, channels, shared_memory_regions)) => {

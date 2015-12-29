@@ -49,7 +49,7 @@ impl RouterProxy {
                                                 mpsc_sender: Sender<T>)
         where T: Deserialize + Serialize + Send + 'static
     {
-        self.add_route(ipc_receiver.to_opaque(),
+        self.add_route(ipc_receiver.opaque(),
                        Box::new(move |message| {
                            drop(mpsc_sender.send(message.to::<T>().unwrap()))
                        }))

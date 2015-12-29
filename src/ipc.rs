@@ -80,7 +80,7 @@ impl<T> IpcReceiver<T> where T: Deserialize + Serialize
         }
     }
 
-    pub fn to_opaque(self) -> OpaqueIpcReceiver {
+    pub fn opaque(self) -> OpaqueIpcReceiver {
         OpaqueIpcReceiver { os_receiver: self.os_receiver }
     }
 }
