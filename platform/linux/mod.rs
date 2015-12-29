@@ -785,7 +785,7 @@ impl UnixCmsg {
     }
 
     unsafe fn send(&mut self, fd: c_int) -> Result<(), UnixError> {
-        let result = sendmsg(fd, &mut self.msghdr, 0);
+        let result = sendmsg(fd, &self.msghdr, 0);
         if result > 0 {
             Ok(())
         } else {
