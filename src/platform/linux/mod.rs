@@ -210,7 +210,7 @@ impl UnixSender {
                 }
 
                 let bytes_to_send = end_byte_position - byte_position + mem::size_of::<u32>() * 2;
-                let result = if byte_position == 0 {
+                let res = if byte_position == 0 {
                     // First one. This fragment includes the file descriptors.
 
                     // Better reset this in case `data_buffer` moved around -- iterator
@@ -227,7 +227,7 @@ impl UnixSender {
                                0)
                 };
 
-                if result <= 0 {
+                if res <= 0 {
                     return Err(UnixError::last());
                 }
 
