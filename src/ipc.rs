@@ -284,7 +284,7 @@ impl Deserialize for IpcSharedMemory {
         // FIXME(pcwalton): This could panic. Return some sort of nice error.
                 mem::replace(
                     &mut os_ipc_shared_memory_regions_for_deserialization.borrow_mut()[index],
-                    None).unwrap()
+                    None).expect("Could not get mem region for deserialisation")
             });
         Ok(IpcSharedMemory { os_shared_memory: os_shared_memory })
     }
