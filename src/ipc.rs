@@ -109,11 +109,11 @@ impl<T> Serialize for IpcReceiver<T> where T: Deserialize + Serialize
         where S: Serializer
     {
         let index = OS_IPC_CHANNELS_FOR_SERIALIZATION.with(|os_ipc_channels_for_serialization| {
-            let mut os_ipc_channels_for_serialization =
+            let mut os_ipc_channels_for_serialization_mut =
                 os_ipc_channels_for_serialization.borrow_mut();
-            let index = os_ipc_channels_for_serialization.len();
-            os_ipc_channels_for_serialization.push(OsIpcChannel::Receiver(self.os_receiver
-                                                                              .consume()));
+            let index = os_ipc_channels_for_serialization_mut.len();
+            os_ipc_channels_for_serialization_mut.push(OsIpcChannel::Receiver(self.os_receiver
+                                                                                  .consume()));
             index
         });
         index.serialize(serializer)
@@ -164,7 +164,7 @@ impl<T> IpcSender<T> where T: Serialize
                 let os_ipc_channels;
                 {
                     let mut serializer = bincode::serde::Serializer::new(&mut bytes);
-                    data.serialize(&mut serializer).unwrap();
+                    data.serialize(&mut serializer).expect("Could not serialize");
                     os_ipc_channels =
                         mem::replace(&mut *os_ipc_channels_for_serialization.borrow_mut(),
                                      old_os_ipc_channels);
@@ -179,7 +179,7 @@ impl<T> IpcSender<T> where T: Serialize
         })
     }
 
-    pub fn to_opaque(self) -> OpaqueIpcSender {
+    pub fn opaque(self) -> OpaqueIpcSender {
         OpaqueIpcSender { os_sender: self.os_sender }
     }
 }
@@ -296,10 +296,10 @@ impl Serialize for IpcSharedMemory {
     {
         let index = OS_IPC_SHARED_MEMORY_REGIONS_FOR_SERIALIZATION.with(
             |os_ipc_shared_memory_regions_for_serialization| {
-                let mut os_ipc_shared_memory_regions_for_serialization =
+                let mut os_ipc_shared_memory_regions_for_serialization_mut =
                     os_ipc_shared_memory_regions_for_serialization.borrow_mut();
-                let index = os_ipc_shared_memory_regions_for_serialization.len();
-                os_ipc_shared_memory_regions_for_serialization.push(self.os_shared_memory
+                let index = os_ipc_shared_memory_regions_for_serialization_mut.len();
+                os_ipc_shared_memory_regions_for_serialization_mut.push(self.os_shared_memory
                                                                         .clone());
                 index
             });
@@ -448,15 +448,15 @@ impl<T> IpcOneShotServer<T> where T: Deserialize + Serialize
     }
 
     pub fn accept(self) -> Result<(IpcReceiver<T>, T), ()> {
-        let (os_receiver, data, os_channels, os_shared_memory_regions) = match self.os_server
-                                                                                   .accept() {
+        let (os_receiver, receive_values) = match self.os_server
+                                                      .accept() {
             Ok(result) => result,
             Err(_) => return Err(()),
         };
         let value = try!(OpaqueIpcMessage {
-            data: data,
-            os_ipc_channels: os_channels,
-            os_ipc_shared_memory_regions: os_shared_memory_regions.into_iter()
+            data: receive_values.0,
+            os_ipc_channels: receive_values.1,
+            os_ipc_shared_memory_regions: receive_values.2.into_iter()
                                                                   .map(|os_shared_memory_region| {
                 Some(os_shared_memory_region)
             }).collect(),
@@ -475,9 +475,10 @@ fn serialize_os_ipc_sender<S>(os_ipc_sender: &OsIpcSender,
     where S: Serializer
 {
     let index = OS_IPC_CHANNELS_FOR_SERIALIZATION.with(|os_ipc_channels_for_serialization| {
-        let mut os_ipc_channels_for_serialization = os_ipc_channels_for_serialization.borrow_mut();
-        let index = os_ipc_channels_for_serialization.len();
-        os_ipc_channels_for_serialization.push(OsIpcChannel::Sender(os_ipc_sender.clone()));
+        let mut os_ipc_channels_for_serialization_mut =
+            os_ipc_channels_for_serialization.borrow_mut();
+        let index = os_ipc_channels_for_serialization_mut.len();
+        os_ipc_channels_for_serialization_mut.push(OsIpcChannel::Sender(os_ipc_sender.clone()));
         index
     });
     index.serialize(serializer)

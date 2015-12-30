@@ -48,6 +48,8 @@ pub fn channel() -> Result<(UnixSender, UnixReceiver), UnixError> {
     }
 }
 
+pub type RecieveValues = (Vec<u8>, Vec<OpaqueUnixChannel>, Vec<UnixSharedMemory>);
+
 #[derive(PartialEq, Debug)]
 pub struct UnixReceiver {
     fd: c_int,
@@ -75,13 +77,11 @@ impl UnixReceiver {
         UnixReceiver::from_fd(self.consume_fd())
     }
 
-    pub fn recv(&self) -> Result<(Vec<u8>, Vec<OpaqueUnixChannel>, Vec<UnixSharedMemory>), UnixError> {
+    pub fn recv(&self) -> Result<RecieveValues, UnixError> {
         recv(self.fd, BlockingMode::Blocking)
     }
 
-    pub fn try_recv
-                    (&self)
-                     -> Result<(Vec<u8>, Vec<OpaqueUnixChannel>, Vec<UnixSharedMemory>), UnixError> {
+    pub fn try_recv(&self) -> Result<RecieveValues, UnixError> {
         recv(self.fd, BlockingMode::Nonblocking)
     }
 }
@@ -447,12 +447,7 @@ impl UnixOneShotServer {
         }
     }
 
-    pub fn accept(self)
-                  -> Result<(UnixReceiver,
-                             Vec<u8>,
-                             Vec<OpaqueUnixChannel>,
-                             Vec<UnixSharedMemory>),
-                            UnixError> {
+    pub fn accept(self) -> Result<(UnixReceiver, RecieveValues), UnixError> {
         unsafe {
             let mut sockaddr = mem::uninitialized();
             let mut sockaddr_len = mem::uninitialized();
@@ -462,8 +457,8 @@ impl UnixOneShotServer {
             }
 
             let receiver = UnixReceiver { fd: client_fd };
-            let (data, channels, shared_memory_regions) = try!(receiver.recv());
-            Ok((receiver, data, channels, shared_memory_regions))
+            let receive_values = try!(receiver.recv());
+            Ok((receiver, receive_values))
         }
     }
 }
