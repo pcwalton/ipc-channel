@@ -7,8 +7,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![feature(custom_derive, plugin, slice_bytes, slice_patterns)]
-#![feature(mpsc_select, arc_unique)]
+#![feature(custom_derive, plugin, slice_patterns)]
 #![plugin(serde_macros)]
 
 #[macro_use]
@@ -24,7 +23,3 @@ extern crate uuid;
 pub mod ipc;
 pub mod platform;
 pub mod router;
-
-#[cfg(test)]
-mod test;
-

@@ -13,7 +13,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 
 use ipc::{self, IpcReceiver, IpcReceiverSet, IpcSelectionResult, IpcSender, OpaqueIpcMessage};
-use ipc::{OpaqueIpcReceiver};
+use ipc::OpaqueIpcReceiver;
 use serde::{Deserialize, Serialize};
 
 lazy_static! {
@@ -47,23 +47,21 @@ impl RouterProxy {
     pub fn route_ipc_receiver_to_mpsc_sender<T>(&self,
                                                 ipc_receiver: IpcReceiver<T>,
                                                 mpsc_sender: Sender<T>)
-                                                where T: Deserialize +
-                                                         Serialize +
-                                                         Send +
-                                                         'static {
-        self.add_route(ipc_receiver.to_opaque(), Box::new(move |message| {
-            drop(mpsc_sender.send(message.to::<T>().unwrap()))
-        }))
+        where T: Deserialize + Serialize + Send + 'static
+    {
+        self.add_route(ipc_receiver.opaque(),
+                       Box::new(move |message| {
+                           drop(mpsc_sender.send(message.to::<T>().unwrap()))
+                       }))
     }
 
     /// A convenience function to route an `IpcReceiver<T>` to a `Receiver<T>`: the most common
     /// use of a `Router`.
-    pub fn route_ipc_receiver_to_new_mpsc_receiver<T>(&self, ipc_receiver: IpcReceiver<T>)
-                                                  -> Receiver<T>
-                                                  where T: Deserialize +
-                                                           Serialize +
-                                                           Send +
-                                                           'static {
+    pub fn route_ipc_receiver_to_new_mpsc_receiver<T>(&self,
+                                                      ipc_receiver: IpcReceiver<T>)
+                                                      -> Receiver<T>
+        where T: Deserialize + Serialize + Send + 'static
+    {
         let (mpsc_sender, mpsc_receiver) = mpsc::channel();
         self.route_ipc_receiver_to_mpsc_sender(ipc_receiver, mpsc_sender);
         mpsc_receiver
@@ -79,7 +77,7 @@ struct Router {
     msg_receiver: Receiver<RouterMsg>,
     msg_wakeup_id: i64,
     ipc_receiver_set: IpcReceiverSet,
-    handlers: HashMap<i64,RouterHandler>,
+    handlers: HashMap<i64, RouterHandler>,
 }
 
 impl Router {
@@ -95,11 +93,7 @@ impl Router {
     }
 
     fn run(&mut self) {
-        loop {
-            let results = match self.ipc_receiver_set.select() {
-                Ok(results) => results,
-                Err(_) => break,
-            };
+        while let Ok(results) = self.ipc_receiver_set.select() {
             for result in results.into_iter() {
                 match result {
                     IpcSelectionResult::MessageReceived(id, _) if id == self.msg_wakeup_id => {
@@ -121,6 +115,7 @@ impl Router {
                 }
             }
         }
+
     }
 }
 
@@ -129,4 +124,3 @@ enum RouterMsg {
 }
 
 pub type RouterHandler = Box<Fn(OpaqueIpcMessage) + Send>;
-

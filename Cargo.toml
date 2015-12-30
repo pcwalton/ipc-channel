@@ -1,22 +1,14 @@
 [package]
+authors = ["pcwalton@mimiga.net"]
 name = "ipc-channel"
 version = "0.1.0"
 
-[lib]
-name = "ipc_channel"
-path = "lib.rs"
-
-[dependencies.serde]
-opt_level = 2
-
-[dependencies.bincode]
-git = "https://github.com/TyOverby/bincode"
-
 [dependencies]
-byteorder = "*"
-lazy_static = "*"
-libc = "*"
-rand = "*"
-serde_macros = "*"
-uuid = "*"
-
+bincode = "~0.4.0"
+byteorder = "~0.4.2"
+lazy_static = "~0.1.15"
+libc = "~0.2.4"
+rand = "~0.3.12"
+serde = "~0.6.7"
+serde_macros = "~0.6.5"
+uuid = "~0.1.18"
