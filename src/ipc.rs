@@ -18,6 +18,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::Deref;
+use platform::ReceiveValues;
 
 thread_local! {
     static OS_IPC_CHANNELS_FOR_DESERIALIZATION: RefCell<Vec<OsOpaqueIpcChannel>> =
@@ -64,7 +65,7 @@ impl<T> IpcReceiver<T> where T: Deserialize + Serialize
 {
     pub fn recv(&self) -> Result<T, ()> {
         match self.os_receiver.recv() {
-            Ok((data, os_ipc_channels, os_ipc_shared_memory_regions)) => {
+            Ok(ReceiveValues { data, channels: os_ipc_channels, shared_memory: os_ipc_shared_memory_regions}) => {
                 OpaqueIpcMessage::new(data, os_ipc_channels, os_ipc_shared_memory_regions).to()
             }
             Err(_) => Err(()),
@@ -73,7 +74,7 @@ impl<T> IpcReceiver<T> where T: Deserialize + Serialize
 
     pub fn try_recv(&self) -> Result<T, ()> {
         match self.os_receiver.try_recv() {
-            Ok((data, os_ipc_channels, os_ipc_shared_memory_regions)) => {
+            Ok(ReceiveValues {data, channels: os_ipc_channels, shared_memory: os_ipc_shared_memory_regions}) => {
                 OpaqueIpcMessage::new(data, os_ipc_channels, os_ipc_shared_memory_regions).to()
             }
             Err(_) => Err(()),
@@ -454,9 +455,9 @@ impl<T> IpcOneShotServer<T> where T: Deserialize + Serialize
             Err(_) => return Err(()),
         };
         let value = try!(OpaqueIpcMessage {
-            data: receive_values.0,
-            os_ipc_channels: receive_values.1,
-            os_ipc_shared_memory_regions: receive_values.2.into_iter()
+            data: receive_values.data,
+            os_ipc_channels: receive_values.channels,
+            os_ipc_shared_memory_regions: receive_values.shared_memory.into_iter()
                                                                   .map(|os_shared_memory_region| {
                 Some(os_shared_memory_region)
             }).collect(),

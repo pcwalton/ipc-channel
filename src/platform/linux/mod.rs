@@ -22,6 +22,7 @@ use std::os::unix::io::AsRawFd;
 use std::ptr;
 use std::slice;
 use std::sync::atomic::{ATOMIC_USIZE_INIT, AtomicUsize, Ordering};
+use platform::ReceiveValues;
 
 #[cfg(all(any(target_arch="arm", target_arch="x86"), target_os="android"))]
 const DEV_NULL_RDEV: libc::c_ulonglong = 0x0103;
@@ -48,7 +49,6 @@ pub fn channel() -> Result<(UnixSender, UnixReceiver), UnixError> {
     }
 }
 
-pub type RecieveValues = (Vec<u8>, Vec<OpaqueUnixChannel>, Vec<UnixSharedMemory>);
 
 #[derive(PartialEq, Debug)]
 pub struct UnixReceiver {
@@ -77,11 +77,11 @@ impl UnixReceiver {
         UnixReceiver::from_fd(self.consume_fd())
     }
 
-    pub fn recv(&self) -> Result<RecieveValues, UnixError> {
+    pub fn recv(&self) -> Result<ReceiveValues, UnixError> {
         recv(self.fd, BlockingMode::Blocking)
     }
 
-    pub fn try_recv(&self) -> Result<RecieveValues, UnixError> {
+    pub fn try_recv(&self) -> Result<ReceiveValues, UnixError> {
         recv(self.fd, BlockingMode::Nonblocking)
     }
 }
@@ -115,10 +115,10 @@ impl UnixSender {
                 -> Result<(), UnixError> {
         let mut data_buffer = vec![0; data.len() + mem::size_of::<u32>() * 2];
         {
-            let mut data_buffer = &mut data_buffer[..];
-            data_buffer.write_u32::<LittleEndian>(0u32).unwrap();
-            data_buffer.write_u32::<LittleEndian>(0u32).unwrap();
-            data_buffer.write(data).unwrap();
+            let mut data_buffer_slice = &mut data_buffer[..];
+            data_buffer_slice.write_u32::<LittleEndian>(0u32).unwrap();
+            data_buffer_slice.write_u32::<LittleEndian>(0u32).unwrap();
+            data_buffer_slice.write(data).unwrap();
         }
 
         unsafe {
@@ -203,10 +203,10 @@ impl UnixSender {
                 };
 
                 {
-                    let mut data_buffer = &mut data_buffer[..];
-                    data_buffer.write_u32::<LittleEndian>(this_fragment_id).unwrap();
-                    data_buffer.write_u32::<LittleEndian>(next_fragment_id).unwrap();
-                    data_buffer.write(&data[byte_position..end_byte_position]).unwrap();
+                    let mut data_buffer_slice = &mut data_buffer[..];
+                    data_buffer_slice.write_u32::<LittleEndian>(this_fragment_id).unwrap();
+                    data_buffer_slice.write_u32::<LittleEndian>(next_fragment_id).unwrap();
+                    data_buffer_slice.write(&data[byte_position..end_byte_position]).unwrap();
                 }
 
                 let bytes_to_send = end_byte_position - byte_position + mem::size_of::<u32>() * 2;
@@ -320,7 +320,7 @@ impl UnixReceiverSet {
         for pollfd in &mut self.pollfds {
             if (pollfd.revents & POLLIN) != 0 {
                 match recv(pollfd.fd, BlockingMode::Blocking) {
-                    Ok((data, channels, shared_memory_regions)) => {
+                    Ok(ReceiveValues{ data, channels, shared_memory: shared_memory_regions}) => {
                         selection_results.push(UnixSelectionResult::DataReceived(
                                 pollfd.fd as i64,
                                 data,
@@ -447,7 +447,7 @@ impl UnixOneShotServer {
         }
     }
 
-    pub fn accept(self) -> Result<(UnixReceiver, RecieveValues), UnixError> {
+    pub fn accept(self) -> Result<(UnixReceiver, ReceiveValues), UnixError> {
         unsafe {
             let mut sockaddr = mem::uninitialized();
             let mut sockaddr_len = mem::uninitialized();
@@ -573,9 +573,7 @@ enum BlockingMode {
     Nonblocking,
 }
 
-fn recv(fd: c_int,
-        blocking_mode: BlockingMode)
-        -> Result<(Vec<u8>, Vec<OpaqueUnixChannel>, Vec<UnixSharedMemory>), UnixError> {
+fn recv(fd: c_int, blocking_mode: BlockingMode) -> Result<(ReceiveValues), UnixError> {
     unsafe {
         let mut maximum_recv_size: usize = 0;
         let mut maximum_recv_size_len = mem::size_of::<usize>() as socklen_t;
@@ -625,7 +623,11 @@ fn recv(fd: c_int,
                 .unwrap();
         if next_fragment_id == 0 {
             // Fast path: no fragments.
-            return Ok((main_data_buffer, channels, shared_memory_regions));
+            return Ok(ReceiveValues {
+                data: main_data_buffer,
+                channels: channels,
+                shared_memory: shared_memory_regions,
+            });
         }
 
         // Reassemble fragments.
@@ -658,7 +660,11 @@ fn recv(fd: c_int,
             try!(leftover_fragment.send(fd));
         }
 
-        Ok((main_data_buffer, channels, shared_memory_regions))
+        Ok(ReceiveValues {
+            data: main_data_buffer,
+            channels: channels,
+            shared_memory: shared_memory_regions,
+        })
     }
 }
 
@@ -796,7 +802,7 @@ impl UnixCmsg {
 }
 
 fn open_dev_null() -> c_int {
-    let file = File::open("/dev/null").unwrap();
+    let file = File::open("/dev/null").expect("Could not open /dev/null");
     let fd = file.as_raw_fd();
     mem::forget(file);
     fd
