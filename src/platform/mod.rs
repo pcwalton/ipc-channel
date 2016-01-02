@@ -66,12 +66,31 @@ pub use platform::inprocess::OpaqueMpscChannel as OsOpaqueIpcChannel;
 pub use platform::inprocess::MpscOneShotServer as OsIpcOneShotServer;
 
 #[cfg(any(target_os="linux", target_os="android"))]
-mod linux;
+pub mod linux;
 #[cfg(target_os="macos")]
 mod macos;
 #[cfg(target_os="windows")]
 mod inprocess;
 
+#[derive(PartialEq, Debug)]
+pub struct ReceiveValues {
+    pub data: Vec<u8>,
+    pub channels: Vec<OsOpaqueIpcChannel>,
+    pub shared_memory: Vec<OsIpcSharedMemory>,
+}
+
+impl ReceiveValues {
+    pub fn new(data: Vec<u8>,
+               channels: Vec<OsOpaqueIpcChannel>,
+               shared_memory: Vec<OsIpcSharedMemory>)
+               -> ReceiveValues {
+        ReceiveValues {
+            data: data,
+            channels: channels,
+            shared_memory: shared_memory,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test;
-
